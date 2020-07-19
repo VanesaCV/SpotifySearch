@@ -1,0 +1,120 @@
+(function() {
+    var nextUrl;
+    var data;
+    var userInput;
+    var albumOrArtist;
+    $("select").val();
+
+    function getData() {
+        userInput = $("input[name='user-input']").val();
+        albumOrArtist = $("select").val();
+        data = {
+            q: userInput,
+            type: albumOrArtist
+        };
+    }
+
+    function infiniteCheck() {
+        var hasReachedBottom =
+            $(window).height() + $(document).scrollTop() >=
+            $(document).height() - 400;
+
+        if (hasReachedBottom) {
+            $("#resultMsg").remove();
+            getData();
+            getInfo(nextUrl);
+        } else {
+            setTimeout(infiniteCheck, 500);
+        }
+    }
+
+    function startSearch() {
+        $(".result").remove();
+        getData();
+        getInfo("https://elegant-croissant.glitch.me/spotify", data);
+    }
+
+    function getInfo(url, data) {
+        $.ajax({
+            url: url,
+            method: "GET",
+            data: data,
+            success: function(response) {
+                response = response.artists || response.albums;
+                var html = "";
+                if (response.items.length > 0 && $("#resultMsg").length === 0) {
+                    $("main").prepend(
+                        "<div id='resultMsg'> results for " +
+                            userInput +
+                            "</div>"
+                    );
+                }
+                if (
+                    response.items.length === 0 &&
+                    $("#resultMsg").length === 0
+                ) {
+                    $("main").prepend(
+                        "<div id='resultMsg'> no results for " +
+                            userInput +
+                            "</div>"
+                    );
+                }
+
+                for (var i = 0; i < response.items.length; i++) {
+                    var imageUrl = "default.jpg";
+                    if (response.items[i].images[0]) {
+                        imageUrl = response.items[i].images[0].url;
+                    }
+
+                    html +=
+                        "<div class='result'><a href='" +
+                        response.items[i].external_urls.spotify +
+                        "' target='_blank'><img class='imgResult' src='" +
+                        imageUrl +
+                        "'></a><div class='responseName'><p>" +
+                        response.items[i].name +
+                        "</p></div></div>";
+
+                    nextUrl =
+                        response.next &&
+                        response.next.replace(
+                            "api.spotify.com/v1/search",
+                            "elegant-croissant.glitch.me/spotify"
+                        );
+                }
+                $("#results-container").append(html);
+
+                if (response.next !== null) {
+                    if (location.search.indexOf("scroll=infinite") > -1) {
+                        infiniteCheck();
+                    } else {
+                        $("#next-btn").css("visibility", "visible");
+                    }
+                } else {
+                    $("#next-btn").css("visibility", "hidden");
+                }
+            },
+            error: function(error) {
+                alert("ERROR: ", error);
+            }
+        });
+    }
+
+    $("input").on("focus, keydown", function(e) {
+        if (e.keyCode == 13) {
+            $("#resultMsg").remove();
+            startSearch();
+        }
+    });
+
+    $("#submit-btn").on("click", function() {
+        $("#resultMsg").remove();
+        startSearch();
+    });
+
+    $("#next-btn").on("click", function() {
+        $("#resultMsg").remove();
+        getData();
+        getInfo(nextUrl);
+    });
+})();
